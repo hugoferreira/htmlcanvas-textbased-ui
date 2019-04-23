@@ -1,23 +1,11 @@
 interface Theme {
     background: string
-
-    f_high: string
-    f_med: string
-    f_low: string
-    f_inv: string
-
-    b_high: string
-    b_med: string
-    b_low: string
-    b_inv: string
+    f_high: string, f_med: string, f_low: string, f_inv: string
+    b_high: string, b_med: string, b_low: string, b_inv: string
 }
 
 class Cursor {
-    x = 0
-    y = 0
-
-    xLength = 0
-    yLength = 0
+    x = 0; y = 0; xLength = 0; yLength = 0
 
     constructor(public width: number = 0, public height: number = 0) { } 
 
@@ -42,18 +30,14 @@ class Cursor {
                y >= this.y && y <= (this.y + this.yLength)
     }
 
-    coords(): Array<[number, number]> {
-        return [[0, 1]]
-    }
-
     moveRight(i: number = 1) { this.x += i; this.clampLocation() }
     moveLeft(i: number = 1)  { this.x -= i; this.clampLocation() }
     moveUp(i: number = 1)    { this.y -= i; this.clampLocation() }
     moveDown(i: number = 1)  { this.y += i; this.clampLocation() }
 
     *selection(): IterableIterator<[number, number]> {
-        for (let x = this.x; x <= this.x + this.xLength; x += 1)
-            for (let y = this.y; y <= this.y + this.yLength; y += 1)
+        for (let y = this.y; y <= this.y + this.yLength; y += 1)
+            for (let x = this.x; x <= this.x + this.xLength; x += 1)
                 yield [x, y]
     }
 
@@ -71,10 +55,8 @@ class Cursor {
 class Sheet {
     objects = new Map<string, string>()
 
-    get(x: number, y: number): string {
-        const o = this.objects.get(`${x},${y}`)
-        if (o === undefined) return ((x % 5) === 0 && (y % 5 === 0)) ? '+' : '·'
-        return o
+    get(x: number, y: number): string | undefined {
+        return this.objects.get(`${x},${y}`)
     }
 
     set(x: number, y: number, o: string) {
@@ -86,12 +68,37 @@ class Sheet {
     }
 }
 
+class Scratchboard {
+    private state = Array<string | undefined>()
+    private stateWidth = 0 
+
+    constructor(private readonly sheet: Sheet) {}
+
+    copy(cursor: Cursor) {
+        this.state.length = 0
+        this.stateWidth = cursor.xLength
+        for (const [x, y] of cursor.selection()) 
+            this.state.push(sheet.get(x, y))
+    }
+
+    paste(cursor: Cursor) {
+        let x = cursor.x
+        let y = cursor.y
+
+        for (const c of this.state) {
+            if (c !== undefined) sheet.set(x, y, c)
+            x += 1; if (x > cursor.x + this.stateWidth) { y += 1; x = cursor.x }
+        }
+    }
+}
+
 class Terminal {
     fontSize = { width: 10, height: 18 }
     padding = { left: 60, top: 20, right: 60, bottom: 42 }    
     width: number
     height: number
     cursor: Cursor
+    clipboard: Scratchboard
     tick: number = 0
 
     constructor(private readonly sheet: Sheet, private readonly ctx: CanvasRenderingContext2D, private scrWidth: number, private scrHeight: number, private readonly theme: Theme) {
@@ -103,6 +110,7 @@ class Terminal {
         this.ctx.font = `${this.fontSize.height * 0.75}px menlo`
 
         this.cursor = new Cursor(this.width - 1, this.height - 1)
+        this.clipboard = new Scratchboard(sheet)
         this.update()
 
         setInterval(() => { this.tick += 1; this.update() }, 200)
@@ -116,8 +124,17 @@ class Terminal {
 
         for (let i = 0; i < this.height; i += 1) {
             for (let j = 0; j < this.width; j += 1) {
-                this.ctx.fillStyle = this.cursor.contains(j, i) ? this.theme.f_inv : this.theme.f_low
-                this.drawChar(this.sheet.get(j, i), j, i)
+                this.ctx.fillStyle = this.theme.f_high
+
+                let c = this.sheet.get(j, i) 
+                
+                if (c === undefined) {
+                    this.ctx.fillStyle = this.theme.f_low
+                    c = ((j % 5) === 0 && (i % 5 === 0)) ? '+' : '·'
+                }
+                
+                if (this.cursor.contains(j, i)) this.ctx.fillStyle = this.theme.f_inv 
+                this.drawChar(c, j, i)
             }
         }
 
@@ -159,9 +176,9 @@ class Terminal {
     onMoveCursor(e: KeyboardEvent) {
         if (e.metaKey) {
             switch(e.key) {
-                case 'c': console.log('Copy'); break
+                case 'c': this.clipboard.copy(this.cursor); break
                 case 'x': console.log('Cut'); break
-                case 'v': console.log('Paste'); break
+                case 'v': this.clipboard.paste(this.cursor); break
             }
         } else if (e.shiftKey) {
             switch (e.key) {
@@ -170,7 +187,7 @@ class Terminal {
                 case 'ArrowUp': this.cursor.shrink(0, e.altKey ? 5 : 1); break
                 case 'ArrowDown': this.cursor.enlarge(0, e.altKey ? 5 : 1); break
             }
-        } else if ('abcdefghijklmnopqrstuvwxyz'.includes(e.key)) {
+        } else if ('1234567890abcdefghijklmnopqrstuvwxyz'.includes(e.key)) {
             this.sheet.set(this.cursor.x, this.cursor.y, e.key)
         } else {
             switch (e.key) {
@@ -204,16 +221,13 @@ class CanvasTerminal extends Terminal {
     }
 }
 
-const canvas = document.getElementById('canvas') as HTMLCanvasElement
-
-/* const ecosystemTheme = { f_high: '#ffffff', f_med: '#999999', f_low: '#555555', f_inv: '#000000', 
-                            b_high: '#fc533e', b_med: '#666666', b_low: '#333333', b_inv: '#fc533e'} */
 
 const defaultTheme = {
     background: '29272b',
     f_high: '#ffffff', f_med: '#e47464', f_low: '#66606b', f_inv: '#000000',
     b_high: '#eeeeee', b_med: '#5f5353', b_low: '#47424a', b_inv: '#e47464' }
 
+const canvas = document.getElementById('canvas') as HTMLCanvasElement
 const sheet = new Sheet()
 const terminal = new CanvasTerminal(sheet, canvas, defaultTheme)
 
