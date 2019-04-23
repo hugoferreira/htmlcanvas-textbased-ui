@@ -1,0 +1,22 @@
+{
+    "name": "canvas-terminal",
+    "version": "1.0.0",
+    "description": "Canvas Terminal",
+    "author": "Sereno",
+    "license": "ISC",
+    "@std/esm": "cjs",
+    "main": "script.js",
+    "dependencies": {},
+    "devDependencies": {
+        "browserify": "^16.2.2",
+        "npm": "^6.0.1",
+        "opn-cli": "^4.1.0",
+        "ts-node": "^8.1.0",
+        "typescript": "^3.4.3"
+    },
+    "scripts": {
+        "build": "tsc",
+        "browserify": "browserify build/script.js -o dist/bundle.js",
+        "browser": "npm run build; npm run browserify; opn index.html"
+    }
+}

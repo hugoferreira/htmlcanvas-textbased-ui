@@ -1,0 +1,16 @@
+@font-face {
+  font-family: 'input_mono_regular';
+  src: url('media/input_mono_regular.ttf') format("ttf");
+  font-weight: normal;
+  font-style: normal;
+}
+
+body {
+  background-color: #111;
+}
+
+#canvas {
+  font-family: 'input_mono_regular', sans-serif;
+  border-radius: 6px;
+  border: 1px solid #FFFFFF33;
+}
