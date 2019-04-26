@@ -55,16 +55,24 @@ class Cursor {
 class Sheet {
     objects = new Map<string, string>()
 
+    protected toKey = (x: number, y: number) => `${x},${y}`
+    protected fromKey = (s: string) => s.split(',').map(m => parseInt(m, 10)) as [number, number]
+
     get(x: number, y: number): string | undefined {
-        return this.objects.get(`${x},${y}`)
+        return this.objects.get(this.toKey(x, y))
     }
 
     set(x: number, y: number, o: string) {
-        this.objects.set(`${x},${y}`, o)
+        this.objects.set(this.toKey(x, y), o)
     }
 
     unset(x: number, y: number) {
-        this.objects.delete(`${x},${y}`)
+        this.objects.delete(this.toKey(x, y))
+    }
+
+    *entries(): IterableIterator<[[number, number], string]> {
+        for(const p of this.objects)
+            yield [this.fromKey(p[0]), p[1]]
     }
 }
 
@@ -94,26 +102,29 @@ class Scratchboard {
 
 class Terminal {
     fontSize = { width: 10, height: 18 }
-    padding = { left: 60, top: 20, right: 60, bottom: 42 }    
-    width: number
-    height: number
+    padding = { left: 60, top: 20, right: 60, bottom: 60 }    
+    width!: number
+    height!: number
     cursor: Cursor
     clipboard: Scratchboard
     tick: number = 0
+    protected scrWidth!: number 
+    protected scrHeight!: number
 
-    constructor(private readonly sheet: Sheet, private readonly ctx: CanvasRenderingContext2D, private scrWidth: number, private scrHeight: number, private readonly theme: Theme) {
+    constructor(private readonly sheet: Sheet, protected readonly ctx: CanvasRenderingContext2D, private readonly theme: Theme) {
+        this.cursor = new Cursor()
+        this.clipboard = new Scratchboard(sheet)
+        this.update()
+    }
+
+    resize(scrWidth: number, scrHeight: number) {
+        this.scrHeight = scrHeight
+        this.scrWidth = scrWidth
+
         this.width = Math.floor((scrWidth - this.padding.left - this.padding.right) / this.fontSize.width) - 1
         this.height = Math.floor((scrHeight - this.padding.top - this.padding.bottom) / this.fontSize.height) - 1
 
-        this.ctx.textBaseline = 'bottom'
-        this.ctx.textAlign = 'center'
-        this.ctx.font = `${this.fontSize.height * 0.75}px menlo`
-
-        this.cursor = new Cursor(this.width - 1, this.height - 1)
-        this.clipboard = new Scratchboard(sheet)
-        this.update()
-
-        setInterval(() => { this.tick += 1; this.update() }, 200)
+        this.cursor.setSize(this.width - 1, this.height - 1)
     }
 
     update() {
@@ -124,13 +135,13 @@ class Terminal {
 
         for (let i = 0; i < this.height; i += 1) {
             for (let j = 0; j < this.width; j += 1) {
-                this.ctx.fillStyle = this.theme.f_high
-
                 let c = this.sheet.get(j, i) 
                 
                 if (c === undefined) {
-                    this.ctx.fillStyle = this.theme.f_low
+                    this.ctx.fillStyle = this.theme.b_low
                     c = ((j % 5) === 0 && (i % 5 === 0)) ? '+' : '·'
+                } else {
+                    this.ctx.fillStyle = this.stylize(c)
                 }
                 
                 if (this.cursor.contains(j, i)) this.ctx.fillStyle = this.theme.f_inv 
@@ -145,6 +156,15 @@ class Terminal {
         this.print(`${this.width}×${this.height}`, 4, this.height + 1)
         this.print(`${this.cursor.x},${this.cursor.y}`, 4, this.height + 2)    
         this.print(`${this.tick}`, 16, this.height + 1)    
+    }
+
+    stylize(c: string): string {
+        switch (c) {
+            case '2': return this.theme.f_med
+            case '3': return this.theme.f_low
+        }
+
+        return this.theme.b_low
     }
 
     drawCursor() {
@@ -201,34 +221,93 @@ class Terminal {
                 case 'ArrowRight': this.cursor.moveRight(e.altKey ? 5 : 1); break
                 case 'ArrowDown': this.cursor.moveDown(e.altKey ? 5 : 1); break
             }
-        }
+        } 
 
         this.update()
     }       
 }
 
 class CanvasTerminal extends Terminal {
-    constructor(sheet: Sheet, canvas: HTMLCanvasElement, theme: Theme) {
+    constructor(sheet: Sheet, w: number, h: number, canvas: HTMLCanvasElement, theme: Theme) {
         const ctx = canvas.getContext('2d')!
-        const width = canvas.width / 2
-        const height = canvas.height / 2
+        super(sheet, ctx, theme)
+        this.resize(w, h)
+    }
+
+    resize(width: number, height: number) {
+        canvas.width = width * 2
+        canvas.height = height * 2
 
         canvas.style.width = `${width}px`
-        canvas.style.height = `${height}px`
-        ctx.scale(2, 2)
+        canvas.style.height = `${height}px` 
 
-        super(sheet, ctx, width, height, theme)
+        this.ctx.scale(2, 2)
+        this.ctx.textBaseline = 'bottom'
+        this.ctx.textAlign = 'center'
+        this.ctx.font = `${this.fontSize.height * 0.75}px menlo`
+
+        super.resize(width, height)
+    }
+}
+
+class WireWorldSheet extends Sheet {
+    load(prog: string, x: number, y: number) {
+        for (const l of prog.split('\n').filter(l => l !== '')) {
+            let cx = x
+            for (const c of l) {
+                if (c !== undefined && c !== '.' && c !== ' ') sheet.set(cx, y, c)
+                cx += 1
+            }
+            y += 1
+        }
+    }
+
+    countNear2s(x: number, y: number): number {
+        return [this.get(x - 1, y    ) === '2',
+                this.get(x + 1, y    ) === '2',
+                this.get(x - 1, y - 1) === '2',
+                this.get(x    , y - 1) === '2',
+                this.get(x + 1, y - 1) === '2',
+                this.get(x - 1, y + 1) === '2',
+                this.get(x    , y + 1) === '2',
+                this.get(x + 1, y + 1) === '2'].filter(m => m === true).length
+    }
+
+    tick() {
+        const newObjects = new Map()
+        for(const [[x, y], c] of this.entries()) {
+            switch(c) {
+                case '3': newObjects.set(this.toKey(x, y), '1'); break
+                case '2': newObjects.set(this.toKey(x, y), '3'); break
+                case '1': 
+                    let c = this.countNear2s(x, y)
+                    if (c === 1 || c === 2) newObjects.set(this.toKey(x, y), '2')
+                    else newObjects.set(this.toKey(x, y), '1')
+                    break
+            }
+        }
+
+        this.objects = newObjects
     }
 }
 
 
 const defaultTheme = {
-    background: '29272b',
+    background: '#29272b',
     f_high: '#ffffff', f_med: '#e47464', f_low: '#66606b', f_inv: '#000000',
     b_high: '#eeeeee', b_med: '#5f5353', b_low: '#47424a', b_inv: '#e47464' }
 
+const p1 = `
+.113211.
+1......1
+.112311.`
+
 const canvas = document.getElementById('canvas') as HTMLCanvasElement
-const sheet = new Sheet()
-const terminal = new CanvasTerminal(sheet, canvas, defaultTheme)
+const sheet = new WireWorldSheet()
+sheet.load(p1, 5, 5)
+const terminal = new CanvasTerminal(sheet, window.innerWidth, window.innerHeight, canvas, defaultTheme) 
 
 window.addEventListener("keydown", (e) => { terminal.onMoveCursor(e); e.preventDefault() }, false)
+window.onresize = (event) => { terminal.resize(window.innerWidth, window.innerHeight) }
+
+setInterval(() => { sheet.tick(); terminal.tick += 1; terminal.update() }, 200)

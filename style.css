@@ -6,11 +6,13 @@
 }
 
 body {
-  background-color: #111;
+  overflow: hidden; 
+  -webkit-app-region: drag; 
 }
 
 #canvas {
+  display: block;
+  white-space: pre;
+  -webkit-app-region: drag; 
   font-family: 'input_mono_regular', sans-serif;
-  border-radius: 6px;
-  border: 1px solid #FFFFFF33;
 }
