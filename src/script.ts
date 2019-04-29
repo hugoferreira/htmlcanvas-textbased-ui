@@ -72,7 +72,6 @@ class WireWorldSheet extends Sheet {
     }
 }
 
-
 const defaultTheme = {
     background: '#29272b',
     f_high: '#ffffff', f_med: '#e47464', f_low: '#66606b', f_inv: '#000000',
@@ -91,7 +90,6 @@ const terminal = new WireWorldTerminal(sheet, window.innerWidth, window.innerHei
 window.addEventListener("keydown", (e) => { 
     terminal.onKeyDown(e)
     terminal.update()
-    e.preventDefault()
 }, false)
 
 window.onresize = (event) => { terminal.resize(window.innerWidth, window.innerHeight) }

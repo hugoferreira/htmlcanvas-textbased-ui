@@ -1,7 +1,8 @@
 import { Sheet } from './sheet'
 import { Cursor } from './cursor'
 import { Scratchboard } from './scratchboard'
- 
+import { KeyHandler } from './keyhandler'
+
 interface Theme {
     background: string
     f_high: string, f_med: string, f_low: string, f_inv: string
@@ -15,12 +16,15 @@ export class Terminal {
     height!: number
     cursor: Cursor
     clipboard: Scratchboard
+    keyHandler: KeyHandler
     protected scrWidth!: number
     protected scrHeight!: number
 
     constructor(protected readonly sheet: Sheet, protected readonly ctx: CanvasRenderingContext2D, protected readonly theme: Theme) {
         this.cursor = new Cursor()
         this.clipboard = new Scratchboard(sheet)
+        this.keyHandler = new KeyHandler()
+        this.registerKeys()
         this.update()
     }
 
@@ -94,34 +98,42 @@ export class Terminal {
             x += 1
         }
     }
+    
+    registerKeys() {
+        this.keyHandler.registerKeys(
+            { meta: true, key: 'c', action: () => { this.clipboard.copy(this.cursor) } },
+            { meta: true, key: 'x', action: () => { console.warn('Cut not implemented') } },
+            { meta: true, key: 'v', action: () => { this.clipboard.paste(this.cursor) } },
+
+            { shift: true, alt: true, key: 'ArrowRight',   action: () => { this.cursor.enlarge(5, 0) } },
+            { shift: true, alt: true, key: 'ArrowLeft',    action: () => { this.cursor.shrink(5, 0) } },
+            { shift: true, alt: true, key: 'ArrowUp',      action: () => { this.cursor.shrink(0, 5) } },
+            { shift: true, alt: true, key: 'ArrowDown',    action: () => { this.cursor.enlarge(0, 5) } },
+
+            { shift: true, alt: false, key: 'ArrowRight',  action: () => { this.cursor.enlarge(1, 0) } },
+            { shift: true, alt: false, key: 'ArrowLeft',   action: () => { this.cursor.shrink(1, 0) } },
+            { shift: true, alt: false, key: 'ArrowUp',     action: () => { this.cursor.shrink(0, 1) } },
+            { shift: true, alt: false, key: 'ArrowDown',   action: () => { this.cursor.enlarge(0, 1) } },
+
+            { shift: false, alt: true, key: 'ArrowRight',  action: () => { this.cursor.moveRight(5) } },
+            { shift: false, alt: true, key: 'ArrowLeft',   action: () => { this.cursor.moveLeft(5) } },
+            { shift: false, alt: true, key: 'ArrowUp',     action: () => { this.cursor.moveUp(5) } },
+            { shift: false, alt: true, key: 'ArrowDown',   action: () => { this.cursor.moveDown(5) } },
+
+            { shift: false, alt: false, key: 'ArrowRight', action: () => { this.cursor.moveRight(1) } },
+            { shift: false, alt: false, key: 'ArrowLeft',  action: () => { this.cursor.moveLeft(1) } },
+            { shift: false, alt: false, key: 'ArrowUp',    action: () => { this.cursor.moveUp(1) } },
+            { shift: false, alt: false, key: 'ArrowDown',  action: () => { this.cursor.moveDown(1) } },
+
+            { key: 'Backspace', action: () => {
+                for (const [x, y] of this.cursor.selection())
+                    this.sheet.unset(x, y)
+            }}
+        )
+    }
 
     onKeyDown(e: KeyboardEvent) {
-        if (e.metaKey) {
-            switch (e.key) {
-                case 'c': this.clipboard.copy(this.cursor); break
-                case 'x': console.log('Cut'); break
-                case 'v': this.clipboard.paste(this.cursor); break
-            }
-        } else if (e.shiftKey) {
-            switch (e.key) {
-                case 'ArrowRight': this.cursor.enlarge(e.altKey ? 5 : 1, 0); break
-                case 'ArrowLeft': this.cursor.shrink(e.altKey ? 5 : 1, 0); break
-                case 'ArrowUp': this.cursor.shrink(0, e.altKey ? 5 : 1); break
-                case 'ArrowDown': this.cursor.enlarge(0, e.altKey ? 5 : 1); break
-            }
-        } else {
-            switch (e.key) {
-                case 'Backspace':
-                    for (const [x, y] of this.cursor.selection())
-                        this.sheet.unset(x, y)
-                    break
-
-                case 'ArrowLeft': this.cursor.moveLeft(e.altKey ? 5 : 1); break
-                case 'ArrowUp': this.cursor.moveUp(e.altKey ? 5 : 1); break
-                case 'ArrowRight': this.cursor.moveRight(e.altKey ? 5 : 1); break
-                case 'ArrowDown': this.cursor.moveDown(e.altKey ? 5 : 1); break
-            }
-        }
+        this.keyHandler.onKeyDown(e)
     }
 }
 

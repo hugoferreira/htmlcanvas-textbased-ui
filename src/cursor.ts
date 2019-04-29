@@ -22,7 +22,7 @@ export class Cursor {
 
     contains(x: number, y: number) {
         return x >= this.x && x <= (this.x + this.xLength) &&
-            y >= this.y && y <= (this.y + this.yLength)
+               y >= this.y && y <= (this.y + this.yLength)
     }
 
     moveRight(i: number = 1) { this.x += i; this.clampLocation() }
