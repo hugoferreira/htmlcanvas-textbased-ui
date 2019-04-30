@@ -3,7 +3,7 @@ import { Cursor } from './cursor'
 import { Scratchboard } from './scratchboard'
 import { KeyHandler } from './keyhandler'
 
-interface Theme {
+export interface Theme {
     background: string
     f_high: string, f_med: string, f_low: string, f_inv: string
     b_high: string, b_med: string, b_low: string, b_inv: string
@@ -16,8 +16,8 @@ export class Terminal {
     height!: number
     cursor: Cursor
     clipboard: Scratchboard
-    keyHandler: KeyHandler
-    showGrid: 'off' | 'on' | 'corners' = 'on'
+    protected keyHandler: KeyHandler
+    protected showGrid: 'off' | 'on' | 'corners' = 'on'
     protected scrWidth!: number
     protected scrHeight!: number
 
@@ -110,7 +110,7 @@ export class Terminal {
         }
     }
     
-    registerKeys() {
+    private registerKeys() {
         this.keyHandler.registerKeys(
             { meta: true, key: 'c', action: () => { this.clipboard.copy(this.cursor) } },
             { meta: true, key: 'x', action: () => { console.warn('Cut not implemented') } },
