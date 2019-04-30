@@ -1,4 +1,4 @@
-import { Theme, Gridable, CanvasTerminal } from './terminal'
+import { Theme, Gridable, Clipboardable, CanvasTerminal } from './terminal'
 import { Sheet } from './sheet'
 
 class WireWorldSheet extends Sheet {
@@ -42,7 +42,7 @@ class WireWorldSheet extends Sheet {
     }
 }
 
-class WireWorldTerminal extends Gridable(CanvasTerminal) {
+class WireWorldTerminal extends Clipboardable(Gridable(CanvasTerminal)) {
     tick: number = 0
     running = true 
 

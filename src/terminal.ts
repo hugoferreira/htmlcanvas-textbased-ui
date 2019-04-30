@@ -16,14 +16,12 @@ export class Terminal {
     width!: number
     height!: number
     cursor: Cursor
-    clipboard: Scratchboard
     protected keyHandler: KeyHandler
     protected scrWidth!: number
     protected scrHeight!: number
 
     constructor(protected readonly sheet: Sheet, protected readonly ctx: CanvasRenderingContext2D, protected readonly theme: Theme) {
         this.cursor = new Cursor()
-        this.clipboard = new Scratchboard(sheet)
         this.keyHandler = new KeyHandler()
         this.registerKeys()
     }
@@ -96,10 +94,6 @@ export class Terminal {
     
     protected registerKeys() {
         this.keyHandler.registerKeys(
-            { meta: true, key: 'c', action: () => { this.clipboard.copy(this.cursor) } },
-            { meta: true, key: 'x', action: () => { console.warn('Cut not implemented') } },
-            { meta: true, key: 'v', action: () => { this.clipboard.paste(this.cursor) } },
-
             { shift: true, alt: true, key: 'ArrowRight',   action: () => { this.cursor.enlarge(5, 0) } },
             { shift: true, alt: true, key: 'ArrowLeft',    action: () => { this.cursor.shrink(5, 0) } },
             { shift: true, alt: true, key: 'ArrowUp',      action: () => { this.cursor.shrink(0, 5) } },
@@ -131,6 +125,22 @@ export class Terminal {
         this.keyHandler.onKeyDown(e)
     }
 }
+
+export type Clipboardable = Mixin<typeof Clipboardable>
+export const Clipboardable = <T extends AnyConstructor<Terminal>>(base: T) =>
+    class extends base {
+        clipboard = new Scratchboard(this.sheet)
+
+        protected registerKeys() {
+            super.registerKeys()
+            
+            this.keyHandler.registerKeys(
+                { meta: true, key: 'c', action: () => { this.clipboard.copy(this.cursor) } },
+                { meta: true, key: 'x', action: () => { console.warn('Cut not implemented') } },
+                { meta: true, key: 'v', action: () => { this.clipboard.paste(this.cursor) } },
+            )
+        }
+    }
 
 export type Gridable = Mixin<typeof Gridable> 
 export const Gridable = <T extends AnyConstructor<Terminal>>(base: T) =>
