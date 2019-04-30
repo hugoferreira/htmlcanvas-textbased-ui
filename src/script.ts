@@ -1,4 +1,4 @@
-import { Theme, CanvasTerminal } from './terminal'
+import { Theme, Gridable, CanvasTerminal } from './terminal'
 import { Sheet } from './sheet'
 
 class WireWorldSheet extends Sheet {
@@ -42,24 +42,12 @@ class WireWorldSheet extends Sheet {
     }
 }
 
-class WireWorldTerminal extends CanvasTerminal {
+class WireWorldTerminal extends Gridable(CanvasTerminal) {
     tick: number = 0
     running = true 
 
     constructor(sheet: WireWorldSheet, w: number, h: number, canvas: HTMLCanvasElement, theme: Theme) {
         super(sheet, w, h, canvas, theme)
-
-        this.keyHandler.registerKeys(
-            { key: 's', action: () => { this.running = !this.running }}
-        )
-
-        window.setInterval(() => { 
-            if (this.running) {
-                sheet.tick()
-                this.tick += 1 
-                this.update()
-            } 
-        }, 200)
 
         window.addEventListener("keydown", (e) => {
             this.onKeyDown(e)
@@ -69,6 +57,14 @@ class WireWorldTerminal extends CanvasTerminal {
         window.onresize = (event) => { 
             this.resize(window.innerWidth, window.innerHeight) 
         }
+
+        window.setInterval(() => {
+            if (this.running) {
+                sheet.tick()
+                this.tick += 1
+                this.update()
+            }
+        }, 200)
     }
 
     draw() {
@@ -95,6 +91,14 @@ class WireWorldTerminal extends CanvasTerminal {
         }
 
         return { c, fillStyle } 
+    }
+
+    registerKeys() {
+        super.registerKeys()
+
+        this.keyHandler.registerKeys(
+            { key: 's', action: () => { this.running = !this.running } }
+        )
     }
 
     onKeyDown(e: KeyboardEvent) {

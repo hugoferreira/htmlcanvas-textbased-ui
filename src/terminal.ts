@@ -2,6 +2,7 @@ import { Sheet } from './sheet'
 import { Cursor } from './cursor'
 import { Scratchboard } from './scratchboard'
 import { KeyHandler } from './keyhandler'
+import { AnyConstructor, Mixin } from './lib/mixins'
 
 export interface Theme {
     background: string
@@ -17,7 +18,6 @@ export class Terminal {
     cursor: Cursor
     clipboard: Scratchboard
     protected keyHandler: KeyHandler
-    protected showGrid: 'off' | 'on' | 'corners' = 'on'
     protected scrWidth!: number
     protected scrHeight!: number
 
@@ -26,7 +26,6 @@ export class Terminal {
         this.clipboard = new Scratchboard(sheet)
         this.keyHandler = new KeyHandler()
         this.registerKeys()
-        this.update()
     }
 
     resize(scrWidth: number, scrHeight: number) {
@@ -66,14 +65,7 @@ export class Terminal {
     }
 
     protected stylize(c: string | undefined, x: number, y: number): { c: string | undefined, fillStyle: string } {
-        let fillStyle = this.theme.f_high
-
-        if (c === undefined && this.showGrid !== 'off') {
-            fillStyle = this.theme.b_low
-            c = ((y % 5) === 0 && (x % 5 === 0)) ? '+' : ((this.showGrid === 'on') ? '·' : undefined)    
-        }
-
-        return { c, fillStyle }
+        return { c, fillStyle: this.theme.f_high }
     }
 
     drawCursor() {
@@ -101,16 +93,8 @@ export class Terminal {
             x += 1
         }
     }
-
-    toggleGridStyle() {
-        switch (this.showGrid) {
-            case 'on': this.showGrid = 'corners'; break
-            case 'off': this.showGrid = 'on'; break
-            case 'corners': this.showGrid = 'off'; break
-        }
-    }
     
-    private registerKeys() {
+    protected registerKeys() {
         this.keyHandler.registerKeys(
             { meta: true, key: 'c', action: () => { this.clipboard.copy(this.cursor) } },
             { meta: true, key: 'x', action: () => { console.warn('Cut not implemented') } },
@@ -136,8 +120,6 @@ export class Terminal {
             { shift: false, alt: false, key: 'ArrowUp',    action: () => { this.cursor.moveUp(1) } },
             { shift: false, alt: false, key: 'ArrowDown',  action: () => { this.cursor.moveDown(1) } },
 
-            { shift: false, alt: false, key: 'g', action: () => { this.toggleGridStyle() } },
-
             { key: 'Backspace', action: () => {
                 for (const [x, y] of this.cursor.selection())
                     this.sheet.unset(x, y)
@@ -149,6 +131,39 @@ export class Terminal {
         this.keyHandler.onKeyDown(e)
     }
 }
+
+export type Gridable = Mixin<typeof Gridable> 
+export const Gridable = <T extends AnyConstructor<Terminal>>(base: T) =>
+    class extends base {
+        protected showGrid: 'off' | 'on' | 'corners' = 'on'
+
+        protected stylize(cc: string | undefined, x: number, y: number): { c: string | undefined, fillStyle: string } {
+            let { c, fillStyle } = super.stylize(cc, x, y)
+
+            if (c === undefined && this.showGrid !== 'off') {
+                fillStyle = this.theme.b_low
+                c = ((y % 5) === 0 && (x % 5 === 0)) ? '+' : ((this.showGrid === 'on') ? '·' : undefined)
+            }
+
+            return { c, fillStyle }
+        } 
+
+        toggleGridStyle() {
+            switch (this.showGrid) {
+                case 'on': this.showGrid = 'corners'; break
+                case 'off': this.showGrid = 'on'; break
+                case 'corners': this.showGrid = 'off'; break
+            }
+        }
+
+        protected registerKeys() {
+            super.registerKeys()
+
+            this.keyHandler.registerKeys(
+                { shift: false, alt: false, key: 'g', action: () => { this.toggleGridStyle() } }
+            )
+        }
+    }
 
 export class CanvasTerminal extends Terminal {
     constructor(sheet: Sheet, w: number, h: number, private canvas: HTMLCanvasElement, theme: Theme) {
