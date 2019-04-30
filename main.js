@@ -8,8 +8,8 @@ app.on('ready', () => {
     app.win = new BrowserWindow({
         width: 820,
         height: 650,
-        minWidth: 310,
-        minHeight: 350,
+        minWidth: 500,
+        minHeight: 500,
         backgroundColor: '#29272b',
         /* icon: __dirname + '/' + { darwin: 'icon.icns', linux: 'icon.png', win32: 'icon.ico' }[process.platform] || 'icon.ico', */
         resizable: true,
@@ -17,7 +17,7 @@ app.on('ready', () => {
         skipTaskbar: process.platform === 'darwin',
         autoHideMenuBar: process.platform === 'darwin',
         movable: true,
-        webPreferences: { zoomFactor: 1.0, nodeIntegration: true, backgroundThrottling: true }
+        webPreferences: { zoomFactor: 1.0, nodeIntegration: false, backgroundThrottling: true }
     })
 
     app.win.loadURL(`file://${__dirname}/index.html`)

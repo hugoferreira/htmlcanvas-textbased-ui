@@ -7,7 +7,11 @@
 
 body {
   overflow: hidden; 
-  -webkit-app-region: drag; 
+  -webkit-app-region: drag;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  background: #29272b; 
 }
 
 #canvas {

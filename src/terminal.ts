@@ -17,6 +17,7 @@ export class Terminal {
     cursor: Cursor
     clipboard: Scratchboard
     keyHandler: KeyHandler
+    showGrid: 'off' | 'on' | 'corners' = 'on'
     protected scrWidth!: number
     protected scrHeight!: number
 
@@ -55,22 +56,24 @@ export class Terminal {
     private drawSheet() {
         for (let i = 0; i < this.height; i += 1) {
             for (let j = 0; j < this.width; j += 1) {
-                let c = this.sheet.get(j, i)
-
-                if (c === undefined) {
-                    this.ctx.fillStyle = this.theme.b_low
-                    c = ((j % 5) === 0 && (i % 5 === 0)) ? '+' : '·'
-                } else this.ctx.fillStyle = this.stylize(c)
-
-                if (this.cursor.contains(j, i)) this.ctx.fillStyle = this.theme.f_inv
-
-                this.drawChar(c, j, i)
+                const { c, fillStyle } = this.stylize(this.sheet.get(j, i), j, i)
+                if (c !== undefined) {
+                    this.ctx.fillStyle = this.cursor.contains(j, i) ? this.theme.f_inv : fillStyle
+                    this.drawChar(c, j, i)
+                }
             }
         }
     }
 
-    protected stylize(c: string): string {
-        return this.theme.f_high
+    protected stylize(c: string | undefined, x: number, y: number): { c: string | undefined, fillStyle: string } {
+        let fillStyle = this.theme.f_high
+
+        if (c === undefined && this.showGrid !== 'off') {
+            fillStyle = this.theme.b_low
+            c = ((y % 5) === 0 && (x % 5 === 0)) ? '+' : ((this.showGrid === 'on') ? '·' : undefined)    
+        }
+
+        return { c, fillStyle }
     }
 
     drawCursor() {
@@ -96,6 +99,14 @@ export class Terminal {
         for (const c of s) {
             this.drawChar(c, x, y)
             x += 1
+        }
+    }
+
+    toggleGridStyle() {
+        switch (this.showGrid) {
+            case 'on': this.showGrid = 'corners'; break
+            case 'off': this.showGrid = 'on'; break
+            case 'corners': this.showGrid = 'off'; break
         }
     }
     
@@ -124,6 +135,8 @@ export class Terminal {
             { shift: false, alt: false, key: 'ArrowLeft',  action: () => { this.cursor.moveLeft(1) } },
             { shift: false, alt: false, key: 'ArrowUp',    action: () => { this.cursor.moveUp(1) } },
             { shift: false, alt: false, key: 'ArrowDown',  action: () => { this.cursor.moveDown(1) } },
+
+            { shift: false, alt: false, key: 'g', action: () => { this.toggleGridStyle() } },
 
             { key: 'Backspace', action: () => {
                 for (const [x, y] of this.cursor.selection())

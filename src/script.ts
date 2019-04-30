@@ -14,13 +14,16 @@ class WireWorldTerminal extends CanvasTerminal {
         this.print(`${this.tick}`, 16, this.height + 1)    
     }
 
-    protected stylize(c: string): string {
+    protected stylize(cc: string | undefined, x: number, y: number): { c: string | undefined, fillStyle: string } {
+        let { c, fillStyle } = super.stylize(cc, x, y)
+
         switch (c) {
-            case '2': return this.theme.f_med
-            case '3': return this.theme.f_low
+            case '1': fillStyle = this.theme.b_med; break
+            case '2': fillStyle = this.theme.f_med; break
+            case '3': fillStyle = this.theme.f_low; break
         }
 
-        return this.theme.b_low
+        return { c, fillStyle } 
     }
 
     onKeyDown(e: KeyboardEvent) {
@@ -74,7 +77,7 @@ class WireWorldSheet extends Sheet {
 
 const defaultTheme = {
     background: '#29272b',
-    f_high: '#ffffff', f_med: '#e47464', f_low: '#66606b', f_inv: '#000000',
+    f_high: '#ffffff', f_med: '#e47464', f_low: '#6f6363', f_inv: '#000000',
     b_high: '#eeeeee', b_med: '#5f5353', b_low: '#47424a', b_inv: '#e47464' }
 
 const p1 = `
